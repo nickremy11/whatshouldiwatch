@@ -134,13 +134,44 @@ export interface Paged<T> {
 	note?: string;
 }
 
+export type Role = "user" | "admin" | "blocked";
+
 export interface Me {
 	id: string;
 	email: string;
 	name: string | null;
 	avatarUrl: string | null;
 	region: string;
+	role: Role;
 	services: number[];
+}
+
+export interface AdminUser {
+	id: string;
+	email: string;
+	name: string | null;
+	avatarUrl: string | null;
+	role: Role;
+	region: string;
+	createdAt: string;
+	lastSeenAt: string | null;
+	watched: number;
+	rated: number;
+	watchlist: number;
+	aiRequests: number;
+	aiRequests7d: number;
+	lastAiAt: string | null;
+}
+
+export interface AdminAiRequest {
+	id: number;
+	userId: string;
+	email: string;
+	prompt: string;
+	mediaType: string;
+	model: string;
+	picks: number;
+	createdAt: string;
 }
 
 export interface AppConfig {

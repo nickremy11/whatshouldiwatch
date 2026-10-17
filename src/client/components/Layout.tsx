@@ -8,6 +8,7 @@ const NAV = [
 	{ to: "/discover", label: "Discover" },
 	{ to: "/picks", label: "AI Picks" },
 	{ to: "/lists", label: "My Lists", auth: true },
+	{ to: "/admin", label: "Admin", admin: true },
 ];
 
 export function Layout() {
@@ -34,7 +35,7 @@ export function Layout() {
 						</span>
 					</Link>
 					<nav className="order-3 flex w-full gap-1 overflow-x-auto text-sm sm:order-none sm:w-auto">
-						{NAV.filter((n) => !n.auth || me).map((n) => (
+						{NAV.filter((n) => (!n.auth || me) && (!n.admin || me?.role === "admin")).map((n) => (
 							<NavLink
 								key={n.to}
 								to={n.to}

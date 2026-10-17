@@ -13,7 +13,27 @@ const EXAMPLES = [
 ];
 
 export function PicksPage() {
-	const { signedIn } = useMe();
+	const { signedIn, loading } = useMe();
+	if (loading) return <Spinner />;
+	if (!signedIn) {
+		return (
+			<div className="mx-auto max-w-xl space-y-4 py-10 text-center">
+				<h1 className="text-3xl font-bold tracking-tight">
+					✨ AI <span className="text-banana">Picks</span>
+				</h1>
+				<p className="text-muted">
+					Describe what you're in the mood for and get five picks with a match score, shaped by your ratings. Sign in to use it.
+				</p>
+				<Link to="/login?returnTo=/picks" className="btn btn-primary">
+					Sign in to use AI Picks
+				</Link>
+			</div>
+		);
+	}
+	return <PicksApp />;
+}
+
+function PicksApp() {
 	const [prompt, setPrompt] = useState("");
 	const [mediaType, setMediaType] = useState<"any" | "movie" | "tv">("any");
 	const picks = useMutation({
@@ -33,7 +53,7 @@ export function PicksPage() {
 				</h1>
 				<p className="mt-2 text-muted">
 					Describe what you're in the mood for and get five picks, each with a match score.
-					{signedIn ? " Your ratings and watch history are used, and anything you've seen is skipped." : " Sign in to have your ratings shape the picks."}
+					{" Your ratings and watch history are used, and anything you've seen is skipped."}
 				</p>
 			</div>
 

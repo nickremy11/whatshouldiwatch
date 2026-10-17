@@ -9,7 +9,10 @@ export interface SessionUser {
 	name: string | null;
 	avatar_url: string | null;
 	region: string;
+	role: Role;
 }
+
+export type Role = "user" | "admin" | "blocked";
 
 export type AppEnv = { Bindings: Env; Variables: { user: SessionUser | null } };
 
@@ -42,12 +45,23 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 	let user: SessionUser | null = null;
 	if (token) {
 		user = await c.env.DB.prepare(
-			`SELECT u.id, u.email, u.name, u.avatar_url, u.region FROM sessions s
+			`SELECT u.id, u.email, u.name, u.avatar_url, u.region, u.role FROM sessions s
 			 JOIN users u ON u.id = s.user_id
-			 WHERE s.id = ? AND s.expires_at > datetime('now')`,
+			 WHERE s.id = ? AND s.expires_at > datetime('now') AND u.role != 'blocked'`,
 		)
 			.bind(await sha256(token))
 			.first<SessionUser>();
+		if (user) {
+			// Throttled to one write per user per hour.
+			c.executionCtx.waitUntil(
+				c.env.DB.prepare(
+					`UPDATE users SET last_seen_at = datetime('now')
+					 WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < datetime('now', '-1 hour'))`,
+				)
+					.bind(user.id)
+					.run(),
+			);
+		}
 	}
 	c.set("user", user);
 	await next();
@@ -57,6 +71,16 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
 	if (!c.get("user")) throw new HTTPException(401, { message: "Sign in required" });
 	await next();
 });
+
+export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
+	if (c.get("user")?.role !== "admin") throw new HTTPException(403, { message: "Admins only" });
+	await next();
+});
+
+const adminEmails = (env: Env) =>
+	env.ADMIN_EMAILS.split(",")
+		.map((e) => e.trim().toLowerCase())
+		.filter(Boolean);
 
 /** Rejects cross-site writes. Browsers always send Origin on non-GET fetches. */
 export const sameOrigin = createMiddleware<AppEnv>(async (c, next) => {
@@ -169,14 +193,20 @@ authRoutes.get("/google/callback", async (c) => {
 		return c.redirect("/login?error=google");
 	}
 
+	// Emails in ADMIN_EMAILS are always admins; everyone else keeps the role set on the admin page.
+	const isAdmin = adminEmails(c.env).includes(claims.email.toLowerCase());
 	const user = await c.env.DB.prepare(
-		`INSERT INTO users (id, google_sub, email, name, avatar_url) VALUES (?, ?, ?, ?, ?)
-		 ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email, name = excluded.name, avatar_url = excluded.avatar_url
-		 RETURNING id`,
+		`INSERT INTO users (id, google_sub, email, name, avatar_url, role, last_seen_at)
+		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+		 ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email, name = excluded.name,
+		   avatar_url = excluded.avatar_url, last_seen_at = excluded.last_seen_at,
+		   role = CASE WHEN ? THEN 'admin' ELSE users.role END
+		 RETURNING id, role`,
 	)
-		.bind(crypto.randomUUID(), claims.sub, claims.email, claims.name ?? null, claims.picture ?? null)
-		.first<{ id: string }>();
+		.bind(crypto.randomUUID(), claims.sub, claims.email, claims.name ?? null, claims.picture ?? null, isAdmin ? "admin" : "user", isAdmin ? 1 : 0)
+		.first<{ id: string; role: Role }>();
 	if (!user) return c.redirect("/login?error=google");
+	if (user.role === "blocked") return c.redirect("/login?error=blocked");
 
 	const token = randomToken();
 	await c.env.DB.prepare(

@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => ({
 
 			AI_MODEL: bindings.text("@cf/zai-org/glm-4.7-flash"),
 			AI_GATEWAY_ID: bindings.text("whatshouldiwatch"),
+			// Comma-separated; these accounts become admins when they sign in.
+			ADMIN_EMAILS: bindings.text("nickremy11@gmail.com"),
 			// Public Turnstile site key. Dev uses Cloudflare's always-pass test key so
 			// it pairs with the test secret the Worker falls back to on localhost.
 			TURNSTILE_SITE_KEY: bindings.text(mode === "development" ? "1x00000000000000000000AA" : "0x4AAAAAAFY_JlGBaajQTadO"),

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { AiPick, AiPicksResponse, MediaType, TitleCard } from "../../shared/types";
-import type { AppEnv } from "../auth";
+import { type AppEnv, requireUser } from "../auth";
 import { attachScores } from "../ratings";
 import { type TmdbPage, tmdb, toCards } from "../tmdb";
 import { attachUserState, genreAffinity } from "../user-data";
@@ -178,16 +178,15 @@ async function resolveOnTmdb(env: Env, rec: AiRec): Promise<TitleCard | null> {
 	return toCards(loose.results)[0] ?? null;
 }
 
-recs.post("/ai", async (c) => {
+recs.post("/ai", requireUser, async (c) => {
 	const { prompt, mediaType } = aiBody.parse(await c.req.json());
-	const user = c.get("user");
-	const limiterKey = user?.id ?? c.req.header("CF-Connecting-IP") ?? "anon";
-	const { success } = await c.env.AI_RATE_LIMIT.limit({ key: limiterKey });
+	const user = c.get("user")!;
+	const { success } = await c.env.AI_RATE_LIMIT.limit({ key: user.id });
 	if (!success) throw new HTTPException(429, { message: "Slow down — try again in a minute." });
 
 	let taste = "";
 	let seen = new Set<string>();
-	if (user) {
+	{
 		const { results } = await c.env.DB.prepare(
 			`SELECT t.title, t.year, ut.media_type, ut.tmdb_id, ut.rating, ut.watched_at
 			 FROM user_titles ut JOIN titles t ON t.media_type = ut.media_type AND t.tmdb_id = ut.tmdb_id
@@ -227,7 +226,13 @@ recs.post("/ai", async (c) => {
 			max_tokens: 2000,
 			temperature: 0.6,
 		} as never,
-		{ gateway: { id: c.env.AI_GATEWAY_ID } },
+		{
+			gateway: {
+				id: c.env.AI_GATEWAY_ID,
+				// Shows who made each request in AI Gateway logs (max 5 entries, scalars only).
+				metadata: { email: user.email, userId: user.id, mediaType },
+			},
+		},
 	);
 
 	let aiRecs: AiRec[];
@@ -248,6 +253,9 @@ recs.post("/ai", async (c) => {
 	});
 	picks.sort((a, b) => b.match - a.match);
 	await attachScores(c.env, picks);
-	await attachUserState(c.env, user?.id, picks);
+	await attachUserState(c.env, user.id, picks);
+	await c.env.DB.prepare("INSERT INTO ai_requests (user_id, prompt, media_type, model, picks) VALUES (?, ?, ?, ?, ?)")
+		.bind(user.id, prompt, mediaType, c.env.AI_MODEL, picks.length)
+		.run();
 	return c.json({ prompt, model: c.env.AI_MODEL, picks } satisfies AiPicksResponse);
 });

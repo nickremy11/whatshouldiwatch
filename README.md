@@ -12,7 +12,10 @@ A streamlined movie and TV search, ratings and tracking app at
   popularity, blended score, rating, year or title.
 - **Track** a watchlist, watched titles, half-star ratings and per-episode progress (signed in with Google).
 - **Recommendations**: "Because you rated X…" rows built from your ratings, plus trending and acclaimed rows.
-- **AI Picks**: describe a mood and get 5 picks with a match score, from a Workers AI model through AI Gateway.
+- **AI Picks** (signed-in only): describe a mood and get 5 picks with a match score, from a Workers AI model
+  through AI Gateway. Each request carries the user's `email`/`userId` as AI Gateway metadata and is logged in D1.
+- **Admin** (`/admin`): every account with activity counts and AI usage; set roles (`user`, `admin`, `blocked`).
+  Emails in the `ADMIN_EMAILS` config var always become admins when they sign in.
 
 ## Stack
 

@@ -20,6 +20,7 @@ me.get("/", async (c) => {
 		name: user.name,
 		avatarUrl: user.avatar_url,
 		region: user.region,
+		role: user.role,
 		services: results.map((r) => r.provider_id),
 	} satisfies Me);
 });

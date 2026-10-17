@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import { ApiError } from "./api";
 import { Layout } from "./components/Layout";
 import "./index.css";
+import { AdminPage } from "./pages/Admin";
 import { DiscoverPage } from "./pages/Discover";
 import { HomePage } from "./pages/Home";
 import { ListsPage } from "./pages/Lists";
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
 			{ path: "/lists", element: <ListsPage /> },
 			{ path: "/settings", element: <SettingsPage /> },
 			{ path: "/login", element: <LoginPage /> },
+			{ path: "/admin", element: <AdminPage /> },
 			{ path: "*", element: <p className="text-muted">Page not found.</p> },
 		],
 	},

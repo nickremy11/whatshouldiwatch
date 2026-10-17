@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import type { AppConfig } from "../shared/types";
 import { type AppEnv, authRoutes, sameOrigin, sessionMiddleware } from "./auth";
 import { getScores } from "./ratings";
+import { admin } from "./routes/admin";
 import { catalog } from "./routes/catalog";
 import { me } from "./routes/me";
 import { recs } from "./routes/recs";
@@ -21,13 +22,22 @@ api.get("/config", (c) => {
 	return c.json({
 		turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
 		me: user
-			? { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatar_url, region: user.region, services: [] }
+			? {
+					id: user.id,
+					email: user.email,
+					name: user.name,
+					avatarUrl: user.avatar_url,
+					region: user.region,
+					role: user.role,
+					services: [],
+				}
 			: null,
 	} satisfies AppConfig);
 });
 api.route("/", catalog);
 api.route("/me", me);
 api.route("/recommendations", recs);
+api.route("/admin", admin);
 api.notFound((c) => c.json({ error: "Not found" }, 404));
 app.route("/api", api);
 

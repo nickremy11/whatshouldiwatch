@@ -18,6 +18,7 @@ const ERRORS: Record<string, string> = {
 	denied: "Sign-in was cancelled.",
 	state: "Your sign-in session expired. Please try again.",
 	google: "Google sign-in failed. Please try again.",
+	blocked: "This account has been disabled.",
 };
 
 function loadTurnstile(): Promise<void> {
