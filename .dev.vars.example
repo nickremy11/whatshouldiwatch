@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+TMDB_TOKEN=            # TMDB "API Read Access Token" (v4 bearer token)
+MDBLIST_API_KEY=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Leave blank locally: localhost falls back to Cloudflare's always-pass Turnstile test secret.
+TURNSTILE_SECRET_KEY=

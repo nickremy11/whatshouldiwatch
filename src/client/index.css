@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+	--color-ink: #0b0b10;
+	--color-panel: #15151d;
+	--color-panel-2: #1d1d28;
+	--color-line: #2a2a38;
+	--color-muted: #9a9ab0;
+	--color-banana: #fcd34d;
+	--color-banana-deep: #f59e0b;
+	--font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+	color-scheme: dark;
+	background: var(--color-ink);
+	color: #ececf3;
+}
+
+body {
+	min-height: 100dvh;
+	-webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-panel px-3 py-2 text-sm font-medium transition hover:border-muted disabled:cursor-not-allowed disabled:opacity-40;
+	}
+	.btn-primary {
+		@apply border-banana bg-banana text-amber-950 hover:bg-banana-deep hover:border-banana-deep;
+	}
+	.btn-on {
+		@apply border-emerald-400 bg-emerald-400/15 text-emerald-200;
+	}
+	.input {
+		@apply w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-banana focus:outline-none;
+	}
+	.label {
+		@apply mb-1.5 block text-xs font-semibold tracking-wide text-muted uppercase;
+	}
+}
+
+.scrollbar-none {
+	scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+	display: none;
+}
