@@ -92,6 +92,35 @@ catalog.get("/search", async (c) => {
 	return c.json({ titles, people, page: data.page, totalPages: data.total_pages });
 });
 
+/** Search-as-you-type: TMDB only (no MDBList), so typing never spends the ratings quota. */
+catalog.get("/search/suggest", async (c) => {
+	const q = (c.req.query("q") ?? "").trim();
+	if (q.length < 2) return c.json({ titles: [], people: [] });
+	const data = await tmdb<TmdbPage>(c.env, "/search/multi", { query: q, page: 1, include_adult: false }, 600);
+	// TMDB's order is weak for partial words ("bre"), so favour titles that start with
+	// the query, then the more popular ones.
+	const lower = q.toLowerCase();
+	const rank = (title: string, popularity: number) => (title.toLowerCase().startsWith(lower) ? 1.5 : 0) + Math.log(popularity + 1);
+	const titles = toCards(data.results)
+		.sort((a, b) => rank(b.title, b.popularity) - rank(a.title, a.popularity))
+		.slice(0, 6);
+	const people: PersonCard[] = data.results
+		.filter((r) => r.media_type === "person")
+		.sort((a, b) => rank(b.name ?? "", b.popularity ?? 0) - rank(a.name ?? "", a.popularity ?? 0))
+		.slice(0, 3)
+		.map((p) => ({
+			id: p.id,
+			name: p.name ?? "",
+			profilePath: p.profile_path ?? null,
+			knownFor: (p.known_for ?? [])
+				.map((k) => k.title ?? k.name)
+				.filter(Boolean)
+				.slice(0, 2)
+				.join(", "),
+		}));
+	return c.json({ titles, people });
+});
+
 catalog.get("/people/search", async (c) => {
 	const q = (c.req.query("q") ?? "").trim();
 	if (q.length < 2) return c.json([]);

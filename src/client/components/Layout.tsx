@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from "react-router";
 import { useConfig } from "../api";
+import { SearchBox } from "./SearchBox";
 
 const NAV = [
 	{ to: "/", label: "Home", end: true },
@@ -16,12 +16,6 @@ export function Layout() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const qc = useQueryClient();
-	const [q, setQ] = useState("");
-
-	const onSearch = (e: FormEvent) => {
-		e.preventDefault();
-		if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
-	};
 
 	const logout = async () => {
 		await fetch("/auth/logout", { method: "POST" }).catch(() => undefined);
@@ -51,16 +45,7 @@ export function Layout() {
 							</NavLink>
 						))}
 					</nav>
-					<form onSubmit={onSearch} className="ml-auto flex min-w-0 flex-1 sm:max-w-xs">
-						<input
-							className="input"
-							type="search"
-							placeholder="Search titles or people…"
-							value={q}
-							onChange={(e) => setQ(e.target.value)}
-							aria-label="Search"
-						/>
-					</form>
+					<SearchBox />
 					{me ? (
 						<div className="flex items-center gap-2">
 							<Link to="/settings" title="Settings" className="flex items-center gap-2">
