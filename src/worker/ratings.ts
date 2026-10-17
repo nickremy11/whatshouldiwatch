@@ -6,18 +6,53 @@ const STALE_AFTER_DAYS = 7;
 const DAILY_BUDGET = 900;
 const BATCH_SIZE = 100;
 
-/** How each MDBList source is labelled and shown in its native format. */
-const SOURCES: Record<string, { label: string; format: (v: number) => string; max: number }> = {
-	imdb: { label: "IMDb", format: (v) => `${v.toFixed(1)}/10`, max: 10 },
-	tmdb: { label: "TMDB", format: (v) => `${Math.round(v)}%`, max: 100 },
-	metacritic: { label: "Metacritic", format: (v) => `${Math.round(v)}`, max: 100 },
-	metacriticuser: { label: "Metacritic Users", format: (v) => `${v.toFixed(1)}/10`, max: 10 },
-	tomatoes: { label: "Rotten Tomatoes", format: (v) => `${Math.round(v)}%`, max: 100 },
-	popcorn: { label: "RT Audience", format: (v) => `${Math.round(v)}%`, max: 100 },
-	letterboxd: { label: "Letterboxd", format: (v) => `${v.toFixed(1)}/5`, max: 5 },
-	trakt: { label: "Trakt", format: (v) => `${Math.round(v)}%`, max: 100 },
-	rogerebert: { label: "Roger Ebert", format: (v) => `${v}/4`, max: 4 },
-	myanimelist: { label: "MyAnimeList", format: (v) => `${v.toFixed(2)}/10`, max: 10 },
+interface LinkContext {
+	mediaType: MediaType;
+	tmdbId: number;
+	imdbId: string | null;
+}
+
+const join = (base: string, path: unknown) => (typeof path === "string" && path ? `${base}${path.startsWith("/") ? "" : "/"}${path}` : null);
+
+/**
+ * How each MDBList source is labelled, shown in its native format, and linked.
+ * MDBList returns `url` as a site-relative path (or an id), not a full URL.
+ */
+const SOURCES: Record<
+	string,
+	{ label: string; format: (v: number) => string; max: number; link: (url: unknown, ctx: LinkContext) => string | null }
+> = {
+	imdb: {
+		label: "IMDb",
+		format: (v) => `${v.toFixed(1)}/10`,
+		max: 10,
+		link: (_, c) => (c.imdbId ? `https://www.imdb.com/title/${c.imdbId}/` : null),
+	},
+	tmdb: {
+		label: "TMDB",
+		format: (v) => `${Math.round(v)}%`,
+		max: 100,
+		link: (_, c) => `https://www.themoviedb.org/${c.mediaType}/${c.tmdbId}`,
+	},
+	metacritic: {
+		label: "Metacritic",
+		format: (v) => `${Math.round(v)}`,
+		max: 100,
+		link: (u, c) => join(`https://www.metacritic.com/${c.mediaType === "tv" ? "tv" : "movie"}`, u),
+	},
+	metacriticuser: {
+		label: "Metacritic Users",
+		format: (v) => `${v.toFixed(1)}/10`,
+		max: 10,
+		link: (u, c) => join(`https://www.metacritic.com/${c.mediaType === "tv" ? "tv" : "movie"}`, u),
+	},
+	tomatoes: { label: "Rotten Tomatoes", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
+	popcorn: { label: "RT Audience", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
+	// MDBList reports Letterboxd on a 10-point scale (double the site's 5-star average).
+	letterboxd: { label: "Letterboxd", format: (v) => `${(v > 5 ? v / 2 : v).toFixed(1)}/5`, max: 10, link: (u) => join("https://letterboxd.com", u) },
+	trakt: { label: "Trakt", format: (v) => `${Math.round(v)}%`, max: 100, link: () => null },
+	rogerebert: { label: "Roger Ebert", format: (v) => `${v}/4`, max: 4, link: (u) => join("https://www.rogerebert.com/reviews", u) },
+	myanimelist: { label: "MyAnimeList", format: (v) => `${v.toFixed(2)}/10`, max: 10, link: (u) => join("https://myanimelist.net/anime", u) },
 };
 
 interface MdbRating {
@@ -25,17 +60,23 @@ interface MdbRating {
 	value: number | null;
 	score: number | null;
 	votes: number | null;
-	url?: string | null;
+	url?: unknown;
 }
 
 interface MdbItem {
-	ids?: { tmdb?: number | string };
+	ids?: { tmdb?: number | string; imdb?: string | null };
 	tmdbid?: number | string;
 	tmdb_id?: number | string;
 	ratings?: MdbRating[];
 }
 
-export function normalizeRatings(raw: MdbRating[]): Rating[] {
+/** What the scores table stores: MDBList's raw ratings, formatted on read. */
+interface StoredRatings {
+	imdbId: string | null;
+	raw: MdbRating[];
+}
+
+export function normalizeRatings(raw: MdbRating[], ctx: LinkContext): Rating[] {
 	const out: Rating[] = [];
 	for (const r of raw) {
 		if (r.value === null || r.value === undefined || Number(r.value) <= 0) continue;
@@ -49,12 +90,13 @@ export function normalizeRatings(raw: MdbRating[]): Rating[] {
 					: value <= 10
 						? value * 10
 						: value;
+		const url = meta ? meta.link(r.url, ctx) : typeof r.url === "string" && r.url.startsWith("https://") ? r.url : null;
 		out.push({
 			source: r.source,
 			label: meta?.label ?? r.source,
 			display: meta ? meta.format(value) : String(value),
 			votes: r.votes ?? null,
-			url: r.url ?? null,
+			url,
 			normalized: Math.round(Math.min(100, Math.max(0, normalized))),
 		});
 	}
@@ -76,8 +118,16 @@ interface ScoreRow {
 	fetched_at: string;
 }
 
+function toScores(type: MediaType, id: number, stored: StoredRatings, fetchedAt: string): Scores {
+	const ratings = normalizeRatings(stored.raw, { mediaType: type, tmdbId: id, imdbId: stored.imdbId });
+	return { blended: blend(ratings), ratings, fetchedAt };
+}
+
 function rowToScores(row: ScoreRow): Scores {
-	return { blended: row.blended, ratings: JSON.parse(row.ratings) as Rating[], fetchedAt: row.fetched_at };
+	const parsed = JSON.parse(row.ratings) as StoredRatings | unknown[];
+	// Rows from before raw storage hold pre-formatted ratings; treat them as empty until refreshed.
+	const stored: StoredRatings = Array.isArray(parsed) ? { imdbId: null, raw: [] } : parsed;
+	return toScores(row.media_type, row.tmdb_id, stored, row.fetched_at);
 }
 
 async function readCached(env: Env, items: { mediaType: MediaType; id: number }[]): Promise<Map<string, ScoreRow>> {
@@ -103,8 +153,8 @@ async function takeBudget(env: Env, calls: number): Promise<boolean> {
 	return true;
 }
 
-async function fetchBatch(env: Env, type: MediaType, ids: number[]): Promise<Map<number, MdbRating[]>> {
-	const out = new Map<number, MdbRating[]>();
+async function fetchBatch(env: Env, type: MediaType, ids: number[]): Promise<Map<number, StoredRatings>> {
+	const out = new Map<number, StoredRatings>();
 	if (!env.MDBLIST_API_KEY || !ids.length) return out;
 	if (!(await takeBudget(env, 1))) return out;
 	const res = await fetch(`${MDBLIST}/tmdb/${type === "tv" ? "show" : "movie"}/?apikey=${env.MDBLIST_API_KEY}`, {
@@ -119,7 +169,7 @@ async function fetchBatch(env: Env, type: MediaType, ids: number[]): Promise<Map
 	const items = (await res.json()) as MdbItem[];
 	for (const item of items) {
 		const id = Number(item.ids?.tmdb ?? item.tmdbid ?? item.tmdb_id);
-		if (Number.isFinite(id)) out.set(id, item.ratings ?? []);
+		if (Number.isFinite(id)) out.set(id, { imdbId: item.ids?.imdb ?? null, raw: item.ratings ?? [] });
 	}
 	return out;
 }
@@ -153,8 +203,8 @@ export async function getScores(
 			const fetched = await fetchBatch(env, type, ids);
 			if (!fetched.size) continue;
 			for (const id of ids) {
-				const ratings = normalizeRatings(fetched.get(id) ?? []);
-				const scores: Scores = { blended: blend(ratings), ratings, fetchedAt: new Date().toISOString() };
+				const stored = fetched.get(id) ?? { imdbId: null, raw: [] };
+				const scores = toScores(type, id, stored, new Date().toISOString());
 				out.set(key(type, id), scores);
 				writes.push(
 					env.DB.prepare(
@@ -163,7 +213,7 @@ export async function getScores(
 						 ON CONFLICT (media_type, tmdb_id) DO UPDATE SET
 						   ratings = excluded.ratings, blended = excluded.blended,
 						   source_count = excluded.source_count, fetched_at = excluded.fetched_at`,
-					).bind(type, id, JSON.stringify(ratings), scores.blended, ratings.length),
+					).bind(type, id, JSON.stringify(stored), scores.blended, scores.ratings.length),
 				);
 			}
 		}

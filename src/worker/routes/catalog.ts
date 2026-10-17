@@ -219,8 +219,19 @@ catalog.get("/discover", async (c) => {
 
 	if (q.person && q.type === "tv") {
 		// TMDB's TV discover can't filter by cast, so filter the actor's TV credits ourselves.
-		const credits = await tmdb<{ cast: TmdbListItem[] }>(c.env, `/person/${q.person}/tv_credits`, {}, 86400);
-		let pool = toCards(credits.cast, "tv").filter((t) => {
+		const credits = await tmdb<{ cast: (TmdbListItem & { episode_count?: number })[] }>(
+			c.env,
+			`/person/${q.person}/tv_credits`,
+			{},
+			86400,
+		);
+		// Rank series regulars above one-episode guest spots: weight popularity by episode count.
+		// A person can have several credits on one show (e.g. a role plus a guest "Self"); keep the biggest.
+		const episodes = new Map<number, number>();
+		for (const cr of credits.cast) episodes.set(cr.id, Math.max(episodes.get(cr.id) ?? 0, cr.episode_count ?? 1));
+		const regulars = credits.cast.filter((cr) => (cr.episode_count ?? 1) > 1);
+		const castPool = regulars.length >= 8 ? regulars : credits.cast;
+		let pool = toCards(castPool, "tv").filter((t) => {
 			if (!genres.length && t.genreIds.some((g) => TALK_NEWS.has(g))) return false;
 			if (genres.length) {
 				const hit = q.genreMode === "all" ? genres.every((g) => t.genreIds.includes(g)) : genres.some((g) => t.genreIds.includes(g));
@@ -236,6 +247,9 @@ catalog.get("/discover", async (c) => {
 			const avail = await Promise.all(pool.map((t) => includedProviderIds(c.env, "tv", t.id, region)));
 			pool = pool.filter((_, i) => avail[i].some((p) => providers.includes(p)));
 		}
+		// TMDB "popularity" is a short-term trending signal; vote count is a steadier measure of
+		// how big the show is, and episode count separates series regulars from guest spots.
+		for (const t of pool) t.popularity = Math.log(t.tmdbVotes + 10) * Math.min(episodes.get(t.id) ?? 1, 30) ** 0.75;
 		pool = localSort(pool, q.sort === "blended" ? "popularity" : q.sort);
 		totalResults = pool.length;
 		totalPages = Math.max(1, Math.ceil(pool.length / PAGE_SIZE));

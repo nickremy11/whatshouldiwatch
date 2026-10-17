@@ -221,7 +221,10 @@ recs.post("/ai", async (c) => {
 				{ role: "user", content: taste ? `${taste}\n\nRequest: ${prompt}` : prompt },
 			],
 			response_format: { type: "json_schema", json_schema: AI_SCHEMA },
-			max_tokens: 1500,
+			// Hidden reasoning can use the whole token budget before any JSON is written,
+			// and isn't needed for a list of picks.
+			chat_template_kwargs: { enable_thinking: false },
+			max_tokens: 2000,
 			temperature: 0.6,
 		} as never,
 		{ gateway: { id: c.env.AI_GATEWAY_ID } },
