@@ -94,14 +94,9 @@ export function Layout() {
 			<footer className="border-t border-line">
 				<div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex items-center gap-3">
-						{/* TODO: swap for the official logo file from themoviedb.org/about/logos-attribution */}
-						<a
-							href="https://www.themoviedb.org"
-							target="_blank"
-							rel="noreferrer"
-							className="rounded bg-gradient-to-r from-[#90cea1] to-[#01b4e4] px-1.5 py-0.5 font-black text-[#0d253f]"
-						>
-							TMDB
+						{/* Official logo from themoviedb.org/about/logos-attribution */}
+						<a href="https://www.themoviedb.org" target="_blank" rel="noreferrer" className="shrink-0">
+							<img src="/tmdb-logo.svg" alt="TMDB" className="h-3" />
 						</a>
 						<span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
 					</div>
