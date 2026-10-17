@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<!-- Full-bleed background: iOS/Android round the corners themselves. -->
+	<rect width="512" height="512" fill="#0b0b10"/>
+	<!-- Film strip unspooling from the reel -->
+	<g transform="rotate(-12 256 388)">
+		<rect x="222" y="326" width="330" height="64" fill="#f59e0b"/>
+		<g fill="#0b0b10">
+			<rect x="300" y="333" width="16" height="10" rx="2"/>
+			<rect x="336" y="333" width="16" height="10" rx="2"/>
+			<rect x="372" y="333" width="16" height="10" rx="2"/>
+			<rect x="408" y="333" width="16" height="10" rx="2"/>
+			<rect x="444" y="333" width="16" height="10" rx="2"/>
+			<rect x="480" y="333" width="16" height="10" rx="2"/>
+			<rect x="300" y="373" width="16" height="10" rx="2"/>
+			<rect x="336" y="373" width="16" height="10" rx="2"/>
+			<rect x="372" y="373" width="16" height="10" rx="2"/>
+			<rect x="408" y="373" width="16" height="10" rx="2"/>
+			<rect x="444" y="373" width="16" height="10" rx="2"/>
+			<rect x="480" y="373" width="16" height="10" rx="2"/>
+			<rect x="324" y="348" width="28" height="20" rx="3" opacity=".35"/>
+			<rect x="396" y="348" width="28" height="20" rx="3" opacity=".35"/>
+			<rect x="468" y="348" width="28" height="20" rx="3" opacity=".35"/>
+		</g>
+	</g>
+	<!-- Reel -->
+	<circle cx="222" cy="226" r="176" fill="#fcd34d"/>
+	<circle cx="222" cy="226" r="160" fill="none" stroke="#f59e0b" stroke-width="6"/>
+	<g fill="#0b0b10">
+		<circle cx="222" cy="128" r="44"/>
+		<circle cx="315.2" cy="195.7" r="44"/>
+		<circle cx="279.6" cy="305.3" r="44"/>
+		<circle cx="164.4" cy="305.3" r="44"/>
+		<circle cx="128.8" cy="195.7" r="44"/>
+		<circle cx="222" cy="226" r="22"/>
+	</g>
+	<circle cx="222" cy="226" r="8" fill="#fcd34d"/>
+</svg>
