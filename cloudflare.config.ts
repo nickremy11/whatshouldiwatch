@@ -1,7 +1,7 @@
 import { bindings, defineConfig, triggers } from "cf/config";
 import * as entrypoint from "./src/worker/index.ts" with { type: "cf-worker" };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	accountId: "78edab4f9169850cdbb26130fac4d108",
 	worker: {
 		name: "whatshouldiwatch",
@@ -27,9 +27,9 @@ export default defineConfig({
 
 			AI_MODEL: bindings.text("@cf/zai-org/glm-4.7-flash"),
 			AI_GATEWAY_ID: bindings.text("whatshouldiwatch"),
-			// Public Turnstile site key. The default is Cloudflare's always-pass test key;
-			// the production key is swapped in when the widget is created.
-			TURNSTILE_SITE_KEY: bindings.text("1x00000000000000000000AA"),
+			// Public Turnstile site key. Dev uses Cloudflare's always-pass test key so
+			// it pairs with the test secret the Worker falls back to on localhost.
+			TURNSTILE_SITE_KEY: bindings.text(mode === "development" ? "1x00000000000000000000AA" : "0x4AAAAAAFY_JlGBaajQTadO"),
 
 			TMDB_TOKEN: bindings.secret(),
 			MDBLIST_API_KEY: bindings.secret(),
@@ -38,4 +38,4 @@ export default defineConfig({
 			TURNSTILE_SECRET_KEY: bindings.secret(),
 		},
 	},
-});
+}));
