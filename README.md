@@ -54,10 +54,11 @@ cf d1 migrations apply 8904ef6b-d461-4327-bce6-b6fe5aea2c6a   # when migrations/
 cf deploy
 ```
 
-Secrets (set once; each command prompts for the value):
+Secrets live on the Worker and persist across deploys. Set or rotate one with:
 
 ```sh
-cf workers secrets update --help   # TMDB_TOKEN, MDBLIST_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, TURNSTILE_SECRET_KEY
+cf workers secrets update <NAME> --worker whatshouldiwatch --text "<value>"
+# TMDB_TOKEN, MDBLIST_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, TURNSTILE_SECRET_KEY
 ```
 
 ## Google sign-in setup
