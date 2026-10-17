@@ -90,8 +90,12 @@ me.put("/titles/:type/:id", async (c) => {
 		watchedAt: body.watched === undefined ? current.watchedAt : body.watched ? (current.watchedAt ?? new Date().toISOString()) : null,
 		rating: body.rating === undefined ? current.rating : body.rating,
 	};
+	// Rating something means you've seen it.
+	if (typeof body.rating === "number" && body.watched === undefined && !next.watchedAt) {
+		next.watchedAt = new Date().toISOString();
+	}
 	// Watching something takes it off the watchlist.
-	if (body.watched === true && body.inWatchlist === undefined) next.inWatchlist = false;
+	if (next.watchedAt && !current.watchedAt && body.inWatchlist === undefined) next.inWatchlist = false;
 
 	if (!next.inWatchlist && !next.watchedAt && next.rating === null) {
 		await c.env.DB.prepare("DELETE FROM user_titles WHERE user_id = ? AND media_type = ? AND tmdb_id = ?")
@@ -154,7 +158,9 @@ me.put("/episodes/:id", async (c) => {
 
 	await snapshotTitle(c.env, "tv", id);
 	const state = await getUserState(c.env, userId, "tv", id);
-	const watchedAt = finished ? (state.watchedAt ?? new Date().toISOString()) : null;
+	// Finishing every aired episode marks the show watched; un-ticking an episode un-marks it.
+	// Ticking episodes otherwise leaves a manual "watched" (or a rating's) alone.
+	const watchedAt = finished ? (state.watchedAt ?? new Date().toISOString()) : watched ? state.watchedAt : null;
 	await c.env.DB.prepare(
 		`INSERT INTO user_titles (user_id, media_type, tmdb_id, in_watchlist, watched_at, rating, updated_at)
 		 VALUES (?, 'tv', ?, ?, ?, ?, datetime('now'))
