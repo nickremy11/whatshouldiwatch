@@ -46,12 +46,11 @@ const SOURCES: Record<
 		max: 10,
 		link: (u, c) => join(`https://www.metacritic.com/${c.mediaType === "tv" ? "tv" : "movie"}`, u),
 	},
-	tomatoes: { label: "Rotten Tomatoes", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
-	popcorn: { label: "RT Audience", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
+	tomatoes: { label: "RT Tomatometer", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
+	popcorn: { label: "RT Popcornmeter", format: (v) => `${Math.round(v)}%`, max: 100, link: (u) => join("https://www.rottentomatoes.com", u) },
 	// MDBList reports Letterboxd on a 10-point scale (double the site's 5-star average).
 	letterboxd: { label: "Letterboxd", format: (v) => `${(v > 5 ? v / 2 : v).toFixed(1)}/5`, max: 10, link: (u) => join("https://letterboxd.com", u) },
 	trakt: { label: "Trakt", format: (v) => `${Math.round(v)}%`, max: 100, link: () => null },
-	rogerebert: { label: "Roger Ebert", format: (v) => `${v}/4`, max: 4, link: (u) => join("https://www.rogerebert.com/reviews", u) },
 	myanimelist: { label: "MyAnimeList", format: (v) => `${v.toFixed(2)}/10`, max: 10, link: (u) => join("https://myanimelist.net/anime", u) },
 };
 
@@ -76,9 +75,19 @@ interface StoredRatings {
 	raw: MdbRating[];
 }
 
+/** Sources left out of both the display and the blend. */
+const HIDDEN = new Set(["rogerebert"]);
+/** Display order; unlisted sources follow in MDBList's order. */
+const ORDER = ["imdb", "tomatoes", "popcorn", "metacritic", "metacriticuser", "letterboxd", "trakt", "tmdb"];
+const orderOf = (source: string) => {
+	const i = ORDER.indexOf(source);
+	return i === -1 ? ORDER.length : i;
+};
+
 export function normalizeRatings(raw: MdbRating[], ctx: LinkContext): Rating[] {
 	const out: Rating[] = [];
-	for (const r of raw) {
+	for (const r of [...raw].sort((a, b) => orderOf(a.source) - orderOf(b.source))) {
+		if (HIDDEN.has(r.source)) continue;
 		if (r.value === null || r.value === undefined || Number(r.value) <= 0) continue;
 		const value = Number(r.value);
 		const meta = SOURCES[r.source];
